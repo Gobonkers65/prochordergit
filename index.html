@@ -196,7 +196,11 @@
 }
 
     #timeline-list {
-      padding: 5px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+      padding: 5px; 
+      overflow-y: auto; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 10px;
     }
 
     .timeline-block {
@@ -239,8 +243,9 @@
 
     @media (max-width: 768px) {
       .ref-card { width: 100%; min-width: 100%; } 
-      .structure-panel { width: 100px; }
+      .structure-panel { max-width: 100px; }
     }
+  
   </style>
 </head>
 <body>
@@ -401,7 +406,6 @@ Bm`;
     }
 
     /* --- PARSING --- */
-    /* --- PARSING (FIXAD) --- */
     function parseTextToBlocks(text) {
       const lines = text.split('\n');
       const blocks = [];
