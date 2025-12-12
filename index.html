@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ProChorder Stage - Direct Edit</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #1a1a1a;
+      --surface-color: #252525;
+      --panel-bg: #2d2d2d;
+      --text-main: #e0e0e0;
+      /* ÄNDRAT: Ackordfärg är nu vit */
+      --chord-color: #ffffff; 
+      --accent: #4e7678; 
+      --border: #333;
+      --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-stack);
+      margin: 0; padding: 0;
+      height: 100vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* --- TOOLBAR --- */
+    .toolbar {
+      background-color: var(--surface-color);
+      padding: 0 10px; 
+      height: 40px; 
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0; z-index: 20;
+    }
+    .title-area { font-weight: bold; font-size: 0.9rem; letter-spacing: 0.5px; }
+    .controls { display: flex; gap: 4px; }
+    
+    button {
+      background: #333; color: white; border: 1px solid #444;
+      padding: 0 8px; height: 26px; border-radius: 3px;
+      font-size: 0.8rem; cursor: pointer; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    button:hover { background: #444; }
+    button.primary { background-color: var(--accent); border-color: var(--accent); }
+
+    /* --- MAIN LAYOUT --- */
+    .main-container {
+      display: flex; flex-grow: 1; overflow: hidden;
+    }
+
+    /* --- VÄNSTER: BIBLIOTEK --- */
+    .reference-panel {
+      flex-grow: 2;
+      background-color: var(--bg-color);
+      display: flex; flex-direction: column;
+      border-right: 2px solid #000;
+      overflow: hidden;
+    }
+    
+    /* VÄNSTER RUBRIK (Bibliotek) */
+.panel-header-row {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
+  padding: 0 10px; 
+  background: #262626; 
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  height: 38px; /* Fast höjd */
+}
+    .panel-title {
+      font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 1px;
+    }
+
+    .add-section-container { position: relative; }
+    .btn-add-new {
+      background: var(--accent); border: none; width: 24px; height: 24px; font-size: 1.2rem;
+      border-radius: 4px; line-height: 1; padding-bottom: 3px;
+    }
+    .add-menu {
+      display: none;
+      position: absolute; top: 30px; right: 0;
+      background: #333; border: 1px solid #555;
+      border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+      z-index: 100; min-width: 150px;
+    }
+    .add-section-container:hover .add-menu { display: block; }
+    .add-menu-item {
+      padding: 8px 12px; cursor: pointer; font-size: 0.85rem; color: #eee;
+      border-bottom: 1px solid #444;
+    }
+    .add-menu-item:hover { background: #444; }
+
+    #unique-sections {
+      padding: 8px;
+      overflow-y: auto;
+      display: flex; flex-wrap: wrap; gap: 8px;
+      align-content: flex-start; height: 100%;
+    }
+
+    .ref-card {
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      width: 48%; min-width: 300px;
+      flex-grow: 1; display: flex; flex-direction: column;
+      position: relative; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    /* Stil för dragging i biblioteket */
+    .ref-card.sortable-ghost { opacity: 0.4; background: #000; }
+    .ref-card.highlight {
+      box-shadow: 0 0 0 2px #fff; transform: scale(1.01); z-index: 5;
+    }
+
+    .ref-header {
+      background: rgba(0,0,0,0.3);
+      padding: 4px 8px;
+      font-size: 0.85rem; font-weight: bold; color: #fff;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    /* NYTT: Drag-handtaget */
+    .drag-handle {
+      cursor: grab;
+      color: rgba(255,255,255,0.4);
+      font-size: 1.1rem;
+      margin-right: 8px;
+      line-height: 10px;
+      padding: 0 4px;
+    }
+    .drag-handle:hover { color: #fff; }
+    .drag-handle:active { cursor: grabbing; }
+
+    .btn-arrow-action {
+      background: rgba(255,255,255,0.2); border: none; color: #fff;
+      width: 24px; height: 20px; border-radius: 3px; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .btn-arrow-action:hover { background: #fff; color: #000; }
+
+    .ref-content {
+      padding: 8px; 
+      font-family: monospace; white-space: pre-wrap;
+      font-size: 1.3rem; font-weight: bold; 
+      color: var(--chord-color); /* Nu vit */
+      /*text-shadow: 1px 1px 2px rgba(0,0,0,0.8);*/
+      line-height: 1.2; word-spacing: 0.6em; 
+      min-height: 50px; 
+      cursor: text;
+      outline: none;
+    }
+    .ref-content:focus {
+      background-color: rgba(0,0,0,0.2);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+    }
+
+    /* --- HÖGER: TIDSLINJE --- */
+    .structure-panel {
+      width: 100px; 
+      min-width: 100px; 
+      max-width: 170px;
+
+      background-color: #161616; 
+      display: flex; 
+      flex-direction: column; 
+      flex-shrink: 0;
+    }
+    /* HÖGER RUBRIK (Tidslinje) */
+.structure-header {
+  /* Vi lägger till Flexbox här också för att kunna centrera texten exakt */
+  display: flex;
+  justify-content: center; /* Centrera i sidled */
+  align-items: center;     /* Centrera i höjdled */
+  
+  height: 38px; /* Samma fasta höjd som ovan */
+  padding: 0 10px;
+  
+  background: #222; 
+  border-bottom: 1px solid var(--border); 
+  color: #888; 
+  font-size: 0.75rem; 
+  text-transform: uppercase;
+}
+
+    #timeline-list {
+      padding: 5px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+    }
+
+    .timeline-block {
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 3px 8px; border-radius: 2px;
+      cursor: grab; display: flex; justify-content: space-between; align-items: center;
+      user-select: none;
+    }
+    .timeline-block:hover { filter: brightness(1.2); }
+    .timeline-block:active { cursor: grabbing; }
+
+    .t-title { font-weight: bold; font-size: 0.8rem; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    .t-remove { color: rgba(255,255,255,0.6); font-size: 0.85rem; cursor: pointer; padding: 0 4px; }
+    .t-remove:hover { color: #fff; }
+
+    /* --- EDITOR --- */
+    #editor-view {
+      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg-color); z-index: 50; flex-direction: column;
+    }
+    #editor-view.visible { display: flex; }
+    textarea {
+      flex-grow: 1; background: #1a1a1a; color: #fff; border: none; padding: 20px;
+      font-family: monospace; font-size: 16px; resize: none; outline: none;
+    }
+
+    /* SIDOMENY */
+    #side-menu {
+      position: absolute; top: 0; left: 0; width: 260px; height: 100%;
+      background: #252525; z-index: 60; transform: translateX(-100%);
+      transition: transform 0.3s ease; border-right: 1px solid #333; display: flex; flex-direction: column;
+    }
+    #side-menu.open { transform: translateX(0); }
+    #menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 55; display: none; }
+    #menu-overlay.visible { display: block; }
+    .menu-footer { padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+    #song-list { flex-grow: 1; list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+    .song-item { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; font-size: 0.9rem; }
+    .song-item:hover { background: #333; }
+
+    @media (max-width: 768px) {
+      .ref-card { width: 100%; min-width: 100%; } 
+      .structure-panel { width: 130px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="side-menu">
+    <div style="padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-weight:bold;">Mina Låtar</span>
+      <button onclick="toggleMenu()" style="background:none; border:none; color:#fff;">✕</button>
+    </div>
+    <ul id="song-list"></ul>
+    <div class="menu-footer">
+      <button onclick="createNewSong()" class="primary" style="width:100%">+ Ny Låt</button>
+      <button onclick="exportJSON()" style="width:100%">Spara Backup</button>
+      <input type="file" id="file-import" accept=".json" onchange="importJSON(this)" style="display:none">
+      <button onclick="document.getElementById('file-import').click()" style="width:100%">Ladda Backup</button>
+    </div>
+  </div>
+  <div id="menu-overlay" onclick="toggleMenu()"></div>
+
+  <div class="toolbar">
+    <div style="display:flex; align-items:center; gap: 10px;">
+      <button onclick="toggleMenu()">☰</button>
+      <div class="title-area" id="display-title">Titel</div>
+    </div>
+    <div class="controls">
+      <button id="btn-trans-down">b</button>
+      <button id="btn-trans-up">#</button>
+      <button onclick="toggleEditor(true)">⚙️ Råtext</button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    
+    <div class="reference-panel">
+      <div class="panel-header-row">
+        <span class="panel-title">Bibliotek (Dra för att sortera)</span>
+        
+        <div class="add-section-container">
+          <button class="btn-add-new" title="Lägg till ny sektion">+</button>
+          <div class="add-menu">
+            <div class="add-menu-item" onclick="addNewSection('Intro')">Intro</div>
+            <div class="add-menu-item" onclick="addNewSection('Verse')">Verse</div>
+            <div class="add-menu-item" onclick="addNewSection('Chorus')">Chorus</div>
+            <div class="add-menu-item" onclick="addNewSection('Stick')">Stick</div>
+            <div class="add-menu-item" onclick="addNewSection('Solo')">Solo</div>
+            <div class="add-menu-item" onclick="addNewSection('Instru')">Instru</div>
+            <div class="add-menu-item" onclick="addNewSection('Outro')">Outro</div>
+          </div>
+        </div>
+
+      </div>
+      <div id="unique-sections">
+        </div>
+    </div>
+
+    <div class="structure-panel">
+      <div class="structure-header">Tidslinje</div>
+      <div id="timeline-list">
+        </div>
+    </div>
+
+  </div>
+
+  <div id="editor-view">
+    <textarea id="raw-input" spellcheck="false" placeholder="Titel&#10;# Intro&#10;Am   G&#10;# Vers 1&#10;Am   C..."></textarea>
+    <div style="padding:10px; background:#222; text-align:center;">
+      <button onclick="toggleEditor(false)" class="primary">Spara & Visa</button>
+    </div>
+  </div>
+
+  <script>
+    /* --- CONFIG & DATA --- */
+    const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const NOTES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+    
+    const SECTION_COLORS = {
+      'Verse': '#4e5578',      
+      'Vers': '#4e5578',
+      'Chorus': '#784e4e',     
+      'Refräng': '#784e4e',
+      'Stick': '#774e78',      
+      'Bridge': '#774e78',
+      'Solo': '#58784e',       
+      'Intro': '#4e7678',      
+      'Outro': '#696966',      
+       /* 'Instrumental': '#786d4e', */
+      'Instr': '#786d4e',
+      'Default': '#696966'
+    };
+
+    function normalizeSectionName(name) {
+      return name.replace(/\s+\d+$/, '').trim(); 
+    }
+
+    function getColor(title) {
+      const normal = normalizeSectionName(title);
+      for (const key in SECTION_COLORS) {
+        if (normal.toLowerCase().includes(key.toLowerCase())) return SECTION_COLORS[key];
+      }
+      return SECTION_COLORS['Default'];
+    }
+
+    let songs = [];
+    let currentSongIndex = 0;
+    
+    // DOM Elements
+    const rawInput = document.getElementById('raw-input');
+    const displayTitle = document.getElementById('display-title');
+    const timelineList = document.getElementById('timeline-list');
+    const uniqueSectionsContainer = document.getElementById('unique-sections');
+    const sideMenu = document.getElementById('side-menu');
+    const menuOverlay = document.getElementById('menu-overlay');
+    const editorView = document.getElementById('editor-view');
+    const songListEl = document.getElementById('song-list');
+
+    // Drag & Drop Tidslinje
+    new Sortable(timelineList, {
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      onEnd: () => rebuildTextFromTimeline()
+    });
+
+    // NYTT: Drag & Drop Bibliotek (Sortering)
+    new Sortable(uniqueSectionsContainer, {
+        animation: 150,
+        handle: '.drag-handle', // Bara flytta via handtaget
+        ghostClass: 'sortable-ghost'
+        // Vi sparar inte ordningen till filen, men den behålls visuellt i DOM:en
+        // tills renderInterface körs med ny logik (se nedan)
+    });
+
+    const DEFAULT_SONG = 
+`Min Låt
+# Intro
+Bm   A   G
+
+# Verse 1
+Bm   A   G   F#7
+
+# Chorus
+D    A    Bm   G
+
+# Verse 2
+Bm   A   G   F#7
+
+# Chorus
+D    A    Bm   G
+
+# Outro
+Bm`;
+
+    /* --- INITIALIZATION --- */
+    function init() {
+      const saved = localStorage.getItem('prochorder_v11');
+      if (saved) songs = JSON.parse(saved);
+      else songs = [{ title: "Exempel-låt", content: DEFAULT_SONG }];
+      loadSong(0);
+    }
+
+    /* --- PARSING --- */
+    /* --- PARSING (FIXAD) --- */
+    function parseTextToBlocks(text) {
+      const lines = text.split('\n');
+      const blocks = [];
+      let currentBlock = { title: null, content: [] };
+
+      // Hjälpfunktion för att ta bort tomma rader i slutet av en array
+      function trimTrailingEmptyLines(arr) {
+        while (arr.length > 0 && arr[arr.length - 1].trim() === '') {
+          arr.pop();
+        }
+        return arr;
+      }
+
+      lines.forEach((line, index) => {
+        if (index === 0) return; // Hoppa över titeln på första raden
+        
+        const trimmed = line.trim();
+        
+        // Om vi hittar en ny rubrik (#)
+        if (trimmed.startsWith('#')) {
+          // 1. Spara det förra blocket om det finns
+          if (currentBlock.title) {
+            currentBlock.content = trimTrailingEmptyLines(currentBlock.content);
+            blocks.push(currentBlock);
+          }
+          // 2. Starta nytt block
+          currentBlock = { title: trimmed.substring(1).trim(), content: [] };
+        } else {
+          // Lägg till raden i nuvarande block (om vi har ett)
+          if (currentBlock.title) {
+            currentBlock.content.push(line);
+          }
+        }
+      });
+
+      // Glöm inte det sista blocket!
+      if (currentBlock.title) {
+        currentBlock.content = trimTrailingEmptyLines(currentBlock.content);
+        blocks.push(currentBlock);
+      }
+      
+      return blocks;
+    }
+
+    /* --- RENDERING --- */
+    function renderInterface() {
+      const blocks = parseTextToBlocks(rawInput.value);
+      
+      // 1. Tidslinje (Höger)
+      timelineList.innerHTML = '';
+      blocks.forEach(block => {
+        timelineList.appendChild(createTimelineBlock(block));
+      });
+
+      // 2. Bibliotek (Vänster)
+      
+      // Hämta nuvarande ordning (för att inte tappa sortering när vi renderar om)
+      const currentOrder = [];
+      uniqueSectionsContainer.querySelectorAll('.ref-card').forEach(card => {
+          currentOrder.push(card.dataset.masterTitle);
+      });
+
+      // Bygg data
+      const masterMap = {};
+      blocks.forEach(block => {
+        const masterName = normalizeSectionName(block.title);
+        if (!masterMap[masterName]) {
+          masterMap[masterName] = block.content;
+        }
+      });
+
+      // Sortera nycklarna baserat på nuvarande ordning
+      let keys = Object.keys(masterMap);
+      if (currentOrder.length > 0) {
+          keys.sort((a, b) => {
+              const idxA = currentOrder.indexOf(a);
+              const idxB = currentOrder.indexOf(b);
+              // Om båda finns i listan, sortera efter index
+              if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+              // Om en finns, prioritera den
+              if (idxA !== -1) return -1;
+              if (idxB !== -1) return 1;
+              return 0;
+          });
+      }
+
+      uniqueSectionsContainer.innerHTML = '';
+      keys.forEach(title => {
+        const card = createReferenceCard(title, masterMap[title]);
+        uniqueSectionsContainer.appendChild(card);
+      });
+    }
+
+    /* --- CREATION HELPERS --- */
+    function createTimelineBlock(block) {
+      const div = document.createElement('div');
+      div.className = 'timeline-block';
+      div.dataset.title = block.title;
+      div.dataset.content = JSON.stringify(block.content);
+      div.style.backgroundColor = getColor(block.title);
+      
+      div.innerHTML = `
+        <span class="t-title">${block.title}</span>
+        <span class="t-remove" onclick="removeFromTimeline(this)">✕</span>
+      `;
+      div.addEventListener('click', (e) => {
+        if(e.target.classList.contains('t-remove')) return;
+        highlightReference(normalizeSectionName(block.title));
+      });
+      return div;
+    }
+
+    function createReferenceCard(title, content) {
+      const div = document.createElement('div');
+      div.className = 'ref-card';
+      const idSafe = title.replace(/\s+/g, '-');
+      div.id = 'ref-' + idSafe;
+      // Vi sparar titeln för sorterings-logik
+      div.dataset.masterTitle = title;
+      div.style.backgroundColor = getColor(title);
+
+      // NYTT: Drag-handtag (::) till vänster
+      div.innerHTML = `
+        <div class="ref-header">
+          <div style="display:flex; align-items:center;">
+             <span class="drag-handle" title="Dra för att flytta">⠿</span>
+             <span>${title}</span>
+          </div>
+          <button class="btn-arrow-action" title="Lägg till i tidslinjen" onclick="addToTimeline('${title}')">➜</button>
+        </div>
+        <div class="ref-content" 
+             contenteditable="true" 
+             spellcheck="false"
+             oninput="liveUpdateSection('${title}', this.innerText)"
+             >${content.join('\n')}</div>
+      `;
+      div.dataset.content = JSON.stringify(content);
+      return div;
+    }
+
+    /* --- ACTIONS & LIVE EDITING --- */
+    function liveUpdateSection(sectionTitle, newContent) {
+      const newLines = newContent.split('\n');
+      const timelineItems = document.querySelectorAll('.timeline-block');
+      
+      timelineItems.forEach(item => {
+         if (normalizeSectionName(item.dataset.title) === sectionTitle) {
+             item.dataset.content = JSON.stringify(newLines);
+         }
+      });
+
+      const refCard = document.getElementById('ref-' + sectionTitle.replace(/\s+/g, '-'));
+      if(refCard) {
+         refCard.dataset.content = JSON.stringify(newLines);
+      }
+
+      let text = rawInput.value;
+      const regex = new RegExp(`(# ${sectionTitle}.*?\\n)([\\s\\S]*?)(?=\\n#|$)`, 'g');
+      const updatedText = text.replace(regex, `$1${newContent}`);
+      
+      if (rawInput.value !== updatedText) {
+          rawInput.value = updatedText;
+          save(); 
+      }
+    }
+
+    function addNewSection(type) {
+      const blocks = parseTextToBlocks(rawInput.value);
+      const exists = blocks.some(b => normalizeSectionName(b.title) === type);
+      
+      if (!exists) {
+         const currentText = rawInput.value;
+         const newSectionText = `\n# ${type}\n `; 
+         rawInput.value = currentText + newSectionText;
+         save();
+         renderInterface(); 
+      }
+
+      setTimeout(() => {
+        const cardId = 'ref-' + type.replace(/\s+/g, '-');
+        const card = document.getElementById(cardId);
+        
+        if(card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const contentDiv = card.querySelector('.ref-content');
+          if(contentDiv) {
+            contentDiv.focus();
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(contentDiv);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        }
+      }, 150);
+    }
+
+    function addToTimeline(title) {
+      const refCard = document.getElementById('ref-' + title.replace(/\s+/g, '-'));
+      let content = [];
+      if (refCard && refCard.dataset.content) {
+         content = JSON.parse(refCard.dataset.content);
+      }
+      const newBlock = { title: title, content: content };
+      timelineList.appendChild(createTimelineBlock(newBlock));
+      timelineList.scrollTop = timelineList.scrollHeight;
+      rebuildTextFromTimeline();
+    }
+
+    function removeFromTimeline(el) {
+      el.parentElement.remove();
+      rebuildTextFromTimeline();
+    }
+
+    function highlightReference(title) {
+      document.querySelectorAll('.ref-card').forEach(c => c.classList.remove('highlight'));
+      const id = 'ref-' + title.replace(/\s+/g, '-');
+      const card = document.getElementById(id);
+      if (card) {
+        card.classList.add('highlight');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function rebuildTextFromTimeline() {
+      const title = songs[currentSongIndex].title;
+      let newText = title + "\n\n";
+      const items = timelineList.querySelectorAll('.timeline-block');
+      items.forEach(item => {
+        const t = item.dataset.title;
+        const c = JSON.parse(item.dataset.content);
+        newText += "# " + t + "\n" + c.join('\n') + "\n\n";
+      });
+      rawInput.value = newText;
+      save();
+    }
+
+    /* --- DATA HANDLING --- */
+    function loadSong(index) {
+      if(!songs[index]) index=0; currentSongIndex = index;
+      rawInput.value = songs[index].content;
+      updateTitle(); renderInterface(); updateSongList();
+    }
+    function updateTitle() {
+      const l = rawInput.value.split('\n')[0].trim();
+      songs[currentSongIndex].title = l || "Namnlös";
+      displayTitle.textContent = songs[currentSongIndex].title;
+    }
+    function save() {
+      songs[currentSongIndex].content = rawInput.value;
+      localStorage.setItem('prochorder_v11', JSON.stringify(songs));
+    }
+    function createNewSong() {
+      songs.push({title:"Ny", content:"Ny\n# Intro\n..."});
+      loadSong(songs.length-1); toggleMenu(); toggleEditor(true);
+    }
+    function updateSongList() {
+      songListEl.innerHTML = '';
+      songs.forEach((s,i) => {
+        const li = document.createElement('li');
+        li.className='song-item';
+        li.innerHTML = `<span>${s.title}</span><span onclick="delSong(${i}, event)">🗑</span>`;
+        li.onclick=()=>{loadSong(i);toggleMenu();};
+        songListEl.appendChild(li);
+      });
+    }
+    function delSong(i,e){ e.stopPropagation(); if(confirm("Ta bort?")){songs.splice(i,1); if(!songs.length) createNewSong(); else loadSong(0); save();}}
+    
+    /* --- UI HELPERS --- */
+    function toggleMenu(){ sideMenu.classList.toggle('open'); menuOverlay.classList.toggle('visible'); }
+    function toggleEditor(show){
+      if(show) editorView.classList.add('visible');
+      else { editorView.classList.remove('visible'); updateTitle(); renderInterface(); save(); }
+    }
+    
+    function transpose(steps) {
+      const text = rawInput.value;
+      const lines = text.split('\n');
+      const newLines = lines.map((line, i) => {
+        if(i===0 || line.trim().startsWith('#')) return line;
+        return line.replace(/[A-G][b#]?/g, (match) => {
+             let index = NOTES.indexOf(match);
+             if (index === -1) index = NOTES_FLAT.indexOf(match);
+             if (index === -1) return match;
+             let newIndex = (index + steps) % 12;
+             if (newIndex < 0) newIndex += 12;
+             return NOTES[newIndex];
+        });
+      });
+      rawInput.value = newLines.join('\n');
+      renderInterface(); save();
+    }
+    document.getElementById('btn-trans-up').onclick = () => transpose(1);
+    document.getElementById('btn-trans-down').onclick = () => transpose(-1);
+    
+    function exportJSON() {
+        const blob = new Blob([JSON.stringify(songs)], {type:"application/json"});
+        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="backup.json"; a.click();
+    }
+    function importJSON(inp) {
+        const f = inp.files[0]; if(!f)return;
+        const r = new FileReader(); r.onload=e=>{songs=JSON.parse(e.target.result); loadSong(0);}; r.readAsText(f);
+    }
+
+    init();
+  </script>
+</body>
+</html>
