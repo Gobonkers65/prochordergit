@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ProChorder Stage - Direct Edit</title>
+  <title>ProChorder Stage - Final</title>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
   <style>
     :root {
@@ -14,8 +16,7 @@
       --surface-color: #252525;
       --panel-bg: #2d2d2d;
       --text-main: #e0e0e0;
-      /* ÄNDRAT: Ackordfärg är nu vit */
-      --chord-color: #ffffff; 
+      --chord-color: #ffffff; /* Vit text för ackord */
       --accent: #4e7678; 
       --border: #333;
       --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -69,17 +70,11 @@
       overflow: hidden;
     }
     
-    /* VÄNSTER RUBRIK (Bibliotek) */
-.panel-header-row {
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center;
-  padding: 0 10px; 
-  background: #262626; 
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  height: 38px; /* Fast höjd */
-}
+    .panel-header-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 10px; background: #262626; border-bottom: 1px solid var(--border);
+      flex-shrink: 0; height: 38px;
+    }
     .panel-title {
       font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 1px;
     }
@@ -117,7 +112,6 @@
       flex-grow: 1; display: flex; flex-direction: column;
       position: relative; transition: transform 0.2s, box-shadow 0.2s;
     }
-    /* Stil för dragging i biblioteket */
     .ref-card.sortable-ghost { opacity: 0.4; background: #000; }
     .ref-card.highlight {
       box-shadow: 0 0 0 2px #fff; transform: scale(1.01); z-index: 5;
@@ -131,14 +125,9 @@
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     
-    /* NYTT: Drag-handtaget */
     .drag-handle {
-      cursor: grab;
-      color: rgba(255,255,255,0.4);
-      font-size: 1.1rem;
-      margin-right: 8px;
-      line-height: 10px;
-      padding: 0 4px;
+      cursor: grab; color: rgba(255,255,255,0.4); font-size: 1.1rem;
+      margin-right: 8px; line-height: 10px; padding: 0 4px;
     }
     .drag-handle:hover { color: #fff; }
     .drag-handle:active { cursor: grabbing; }
@@ -152,13 +141,13 @@
     .btn-arrow-action:hover { background: #fff; color: #000; }
 
     .ref-content {
-      padding: 8px; 
+      padding: 6px; 
       font-family: monospace; white-space: pre-wrap;
       font-size: 1.3rem; font-weight: bold; 
-      color: var(--chord-color); /* Nu vit */
-      /*text-shadow: 1px 1px 2px rgba(0,0,0,0.8);*/
-      line-height: 1.2; word-spacing: 0.6em; 
-      min-height: 50px; 
+      color: var(--chord-color);
+      /* FIX 1: Tog bort text-shadow härifrån */
+      line-height: 1.12; word-spacing: 0.6em; 
+      min-height: 40px; 
       cursor: text;
       outline: none;
     }
@@ -168,51 +157,41 @@
     }
 
     /* --- HÖGER: TIDSLINJE --- */
+    /* FIX 3: Fast bredd på 100px oavsett enhet */
     .structure-panel {
       width: 100px; 
       min-width: 100px; 
-      max-width: 170px;
-
-      background-color: #161616; 
-      display: flex; 
-      flex-direction: column; 
-      flex-shrink: 0;
+      max-width: 100px;
+      background-color: #161616; display: flex; flex-direction: column; flex-shrink: 0;
     }
-    /* HÖGER RUBRIK (Tidslinje) */
-.structure-header {
-  /* Vi lägger till Flexbox här också för att kunna centrera texten exakt */
-  display: flex;
-  justify-content: center; /* Centrera i sidled */
-  align-items: center;     /* Centrera i höjdled */
-  
-  height: 38px; /* Samma fasta höjd som ovan */
-  padding: 0 10px;
-  
-  background: #222; 
-  border-bottom: 1px solid var(--border); 
-  color: #888; 
-  font-size: 0.75rem; 
-  text-transform: uppercase;
-}
+    .structure-header {
+      display: flex; justify-content: center; align-items: center;
+      height: 38px; padding: 0 5px;
+      background: #222; border-bottom: 1px solid var(--border); 
+      color: #888; font-size: 0.75rem; text-transform: uppercase;
+      overflow: hidden; white-space: nowrap;
+    }
 
     #timeline-list {
-      padding: 5px; 
-      overflow-y: auto; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 10px;
+      padding: 5px; overflow-y: auto; display: flex; flex-direction: column; 
+      gap: 5px;
     }
 
     .timeline-block {
       border: 1px solid rgba(255,255,255,0.1);
-      padding: 3px 8px; border-radius: 2px;
+      padding: 3px 5px; border-radius: 2px;
       cursor: grab; display: flex; justify-content: space-between; align-items: center;
       user-select: none;
     }
     .timeline-block:hover { filter: brightness(1.2); }
     .timeline-block:active { cursor: grabbing; }
 
-    .t-title { font-weight: bold; font-size: 0.8rem; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    .t-title { 
+      font-weight: bold; font-size: 0.75rem; color: #fff; 
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-right: 2px;
+    }
     .t-remove { color: rgba(255,255,255,0.6); font-size: 0.85rem; cursor: pointer; padding: 0 4px; }
     .t-remove:hover { color: #fff; }
 
@@ -229,38 +208,46 @@
 
     /* SIDOMENY */
     #side-menu {
-      position: absolute; top: 0; left: 0; width: 260px; height: 100%;
+      position: absolute; top: 0; left: 0; width: 280px; height: 100%;
       background: #252525; z-index: 60; transform: translateX(-100%);
       transition: transform 0.3s ease; border-right: 1px solid #333; display: flex; flex-direction: column;
     }
     #side-menu.open { transform: translateX(0); }
     #menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 55; display: none; }
     #menu-overlay.visible { display: block; }
-    .menu-footer { padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+    .menu-footer { padding: 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #333; background: #2a2a2a; }
     #song-list { flex-grow: 1; list-style: none; padding: 0; margin: 0; overflow-y: auto; }
-    .song-item { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; font-size: 0.9rem; }
+    .song-item { padding: 12px 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; justify-content: space-between; font-size: 0.9rem; }
     .song-item:hover { background: #333; }
+    
+    .menu-btn { width: 100%; height: 32px; margin-bottom: 2px; }
 
     @media (max-width: 768px) {
       .ref-card { width: 100%; min-width: 100%; } 
-      .structure-panel { max-width: 100px; }
+      /* Tog bort override för structure-panel här så den behåller 100px */
     }
-  
   </style>
 </head>
 <body>
 
   <div id="side-menu">
-    <div style="padding:10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
-      <span style="font-weight:bold;">Mina Låtar</span>
-      <button onclick="toggleMenu()" style="background:none; border:none; color:#fff;">✕</button>
+    <div style="padding:15px 10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; background:#222;">
+      <span style="font-weight:bold; font-size:1.1rem;">Mina Låtar</span>
+      <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:1.2rem;">✕</button>
     </div>
     <ul id="song-list"></ul>
     <div class="menu-footer">
-      <button onclick="createNewSong()" class="primary" style="width:100%">+ Ny Låt</button>
-      <button onclick="exportJSON()" style="width:100%">Spara Backup</button>
+      <button onclick="createNewSong()" class="primary menu-btn">+ Ny Låt</button>
+      
+      <div style="height:1px; background:#444; margin:5px 0;"></div>
+      
+      <button onclick="exportJSON()" class="menu-btn">Spara Backup (Alla låtar)</button>
       <input type="file" id="file-import" accept=".json" onchange="importJSON(this)" style="display:none">
-      <button onclick="document.getElementById('file-import').click()" style="width:100%">Ladda Backup</button>
+      <button onclick="document.getElementById('file-import').click()" class="menu-btn">Importera Backup</button>
+      
+      <div style="height:1px; background:#444; margin:5px 0;"></div>
+      
+      <button onclick="exportAllPDFs()" class="menu-btn" style="background:#2c4446; border-color:#385557;">Ladda ner ZIP (PDF:er)</button>
     </div>
   </div>
   <div id="menu-overlay" onclick="toggleMenu()"></div>
@@ -331,8 +318,9 @@
       'Solo': '#58784e',       
       'Intro': '#4e7678',      
       'Outro': '#696966',      
-       /* 'Instrumental': '#786d4e', */
+      'Instrumental': '#786d4e', 
       'Instr': '#786d4e',
+      'Instru': '#786d4e', // FIX 2: La till Instru färgkod
       'Default': '#696966'
     };
 
@@ -351,7 +339,6 @@
     let songs = [];
     let currentSongIndex = 0;
     
-    // DOM Elements
     const rawInput = document.getElementById('raw-input');
     const displayTitle = document.getElementById('display-title');
     const timelineList = document.getElementById('timeline-list');
@@ -361,20 +348,16 @@
     const editorView = document.getElementById('editor-view');
     const songListEl = document.getElementById('song-list');
 
-    // Drag & Drop Tidslinje
     new Sortable(timelineList, {
       animation: 150,
       ghostClass: 'sortable-ghost',
       onEnd: () => rebuildTextFromTimeline()
     });
 
-    // NYTT: Drag & Drop Bibliotek (Sortering)
     new Sortable(uniqueSectionsContainer, {
         animation: 150,
-        handle: '.drag-handle', // Bara flytta via handtaget
+        handle: '.drag-handle', 
         ghostClass: 'sortable-ghost'
-        // Vi sparar inte ordningen till filen, men den behålls visuellt i DOM:en
-        // tills renderInterface körs med ny logik (se nedan)
     });
 
     const DEFAULT_SONG = 
@@ -383,21 +366,8 @@
 Bm   A   G
 
 # Verse 1
-Bm   A   G   F#7
+Bm   A   G   F#7`;
 
-# Chorus
-D    A    Bm   G
-
-# Verse 2
-Bm   A   G   F#7
-
-# Chorus
-D    A    Bm   G
-
-# Outro
-Bm`;
-
-    /* --- INITIALIZATION --- */
     function init() {
       const saved = localStorage.getItem('prochorder_v11');
       if (saved) songs = JSON.parse(saved);
@@ -405,13 +375,12 @@ Bm`;
       loadSong(0);
     }
 
-    /* --- PARSING --- */
+    /* --- PARSING (FIXED for empty lines) --- */
     function parseTextToBlocks(text) {
       const lines = text.split('\n');
       const blocks = [];
       let currentBlock = { title: null, content: [] };
 
-      // Hjälpfunktion för att ta bort tomma rader i slutet av en array
       function trimTrailingEmptyLines(arr) {
         while (arr.length > 0 && arr[arr.length - 1].trim() === '') {
           arr.pop();
@@ -420,33 +389,22 @@ Bm`;
       }
 
       lines.forEach((line, index) => {
-        if (index === 0) return; // Hoppa över titeln på första raden
-        
+        if (index === 0) return; 
         const trimmed = line.trim();
-        
-        // Om vi hittar en ny rubrik (#)
         if (trimmed.startsWith('#')) {
-          // 1. Spara det förra blocket om det finns
           if (currentBlock.title) {
             currentBlock.content = trimTrailingEmptyLines(currentBlock.content);
             blocks.push(currentBlock);
           }
-          // 2. Starta nytt block
           currentBlock = { title: trimmed.substring(1).trim(), content: [] };
         } else {
-          // Lägg till raden i nuvarande block (om vi har ett)
-          if (currentBlock.title) {
-            currentBlock.content.push(line);
-          }
+          if (currentBlock.title) currentBlock.content.push(line);
         }
       });
-
-      // Glöm inte det sista blocket!
       if (currentBlock.title) {
         currentBlock.content = trimTrailingEmptyLines(currentBlock.content);
         blocks.push(currentBlock);
       }
-      
       return blocks;
     }
 
@@ -454,21 +412,16 @@ Bm`;
     function renderInterface() {
       const blocks = parseTextToBlocks(rawInput.value);
       
-      // 1. Tidslinje (Höger)
       timelineList.innerHTML = '';
       blocks.forEach(block => {
         timelineList.appendChild(createTimelineBlock(block));
       });
 
-      // 2. Bibliotek (Vänster)
-      
-      // Hämta nuvarande ordning (för att inte tappa sortering när vi renderar om)
       const currentOrder = [];
       uniqueSectionsContainer.querySelectorAll('.ref-card').forEach(card => {
           currentOrder.push(card.dataset.masterTitle);
       });
 
-      // Bygg data
       const masterMap = {};
       blocks.forEach(block => {
         const masterName = normalizeSectionName(block.title);
@@ -477,15 +430,12 @@ Bm`;
         }
       });
 
-      // Sortera nycklarna baserat på nuvarande ordning
       let keys = Object.keys(masterMap);
       if (currentOrder.length > 0) {
           keys.sort((a, b) => {
               const idxA = currentOrder.indexOf(a);
               const idxB = currentOrder.indexOf(b);
-              // Om båda finns i listan, sortera efter index
               if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-              // Om en finns, prioritera den
               if (idxA !== -1) return -1;
               if (idxB !== -1) return 1;
               return 0;
@@ -499,7 +449,6 @@ Bm`;
       });
     }
 
-    /* --- CREATION HELPERS --- */
     function createTimelineBlock(block) {
       const div = document.createElement('div');
       div.className = 'timeline-block';
@@ -523,11 +472,9 @@ Bm`;
       div.className = 'ref-card';
       const idSafe = title.replace(/\s+/g, '-');
       div.id = 'ref-' + idSafe;
-      // Vi sparar titeln för sorterings-logik
       div.dataset.masterTitle = title;
       div.style.backgroundColor = getColor(title);
 
-      // NYTT: Drag-handtag (::) till vänster
       div.innerHTML = `
         <div class="ref-header">
           <div style="display:flex; align-items:center;">
@@ -546,7 +493,7 @@ Bm`;
       return div;
     }
 
-    /* --- ACTIONS & LIVE EDITING --- */
+    /* --- LOGIC --- */
     function liveUpdateSection(sectionTitle, newContent) {
       const newLines = newContent.split('\n');
       const timelineItems = document.querySelectorAll('.timeline-block');
@@ -644,7 +591,6 @@ Bm`;
       save();
     }
 
-    /* --- DATA HANDLING --- */
     function loadSong(index) {
       if(!songs[index]) index=0; currentSongIndex = index;
       rawInput.value = songs[index].content;
@@ -675,7 +621,6 @@ Bm`;
     }
     function delSong(i,e){ e.stopPropagation(); if(confirm("Ta bort?")){songs.splice(i,1); if(!songs.length) createNewSong(); else loadSong(0); save();}}
     
-    /* --- UI HELPERS --- */
     function toggleMenu(){ sideMenu.classList.toggle('open'); menuOverlay.classList.toggle('visible'); }
     function toggleEditor(show){
       if(show) editorView.classList.add('visible');
@@ -702,13 +647,74 @@ Bm`;
     document.getElementById('btn-trans-up').onclick = () => transpose(1);
     document.getElementById('btn-trans-down').onclick = () => transpose(-1);
     
+    /* --- EXPORT / IMPORT --- */
     function exportJSON() {
+        // FIX 4: Säkerställ att aktuell låt sparas till arrayen innan export
+        save();
         const blob = new Blob([JSON.stringify(songs)], {type:"application/json"});
-        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="backup.json"; a.click();
+        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="prochorder_alla_latar.json"; a.click();
     }
     function importJSON(inp) {
         const f = inp.files[0]; if(!f)return;
-        const r = new FileReader(); r.onload=e=>{songs=JSON.parse(e.target.result); loadSong(0);}; r.readAsText(f);
+        const r = new FileReader(); r.onload=e=>{songs=JSON.parse(e.target.result); loadSong(0); toggleMenu();}; r.readAsText(f);
+    }
+
+    /* --- MASS PDF/ZIP EXPORT --- */
+    async function exportAllPDFs() {
+      // Spara först för att vara säker
+      save();
+
+      if(!confirm("Detta skapar en ZIP-fil med en PDF för varje låt. Det kan ta några sekunder.")) return;
+      
+      const zip = new JSZip();
+      
+      // Vi loopar igenom alla låtar
+      for (const song of songs) {
+        // Skapa PDF
+        const doc = new jspdf.jsPDF();
+        
+        // Titel
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text(song.title, 15, 20);
+        
+        // Innehåll (Byt till skrivmaskins-font för ackord)
+        doc.setFont("courier", "normal");
+        doc.setFontSize(12);
+        
+        let y = 35;
+        const lines = song.content.split('\n');
+        
+        lines.forEach((line, index) => {
+          if (index === 0) return; // Skippa titelraden i råtexten
+          
+          if (line.trim().startsWith('#')) {
+             // Rubriker i fetstil
+             doc.setFont("courier", "bold");
+             doc.setTextColor(100); // Mörkgrå
+             if (y > 270) { doc.addPage(); y = 20; }
+             doc.text(line.replace('#', '').trim().toUpperCase(), 15, y);
+             doc.setTextColor(0); // Svart igen
+             doc.setFont("courier", "normal");
+             y += 7;
+          } else {
+             // Ackord/Text
+             if (y > 280) { doc.addPage(); y = 20; }
+             doc.text(line, 15, y);
+             y += 6;
+          }
+        });
+        
+        // Lägg till PDF i ZIP-mappen. 
+        // Vi städar titeln så den funkar som filnamn (tar bort / och :)
+        const safeFilename = song.title.replace(/[^a-z0-9åäö ]/gi, '_') + ".pdf";
+        const pdfBlob = doc.output('blob');
+        zip.file(safeFilename, pdfBlob);
+      }
+      
+      // Generera ZIP och ladda ner
+      const content = await zip.generateAsync({type:"blob"});
+      saveAs(content, "Mina_Latar_PDF.zip");
     }
 
     init();
