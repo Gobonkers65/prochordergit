@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="sv">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ProChorder Stage - Final</title>
-
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -17,504 +16,274 @@
       --surface-color: #252525;
       --panel-bg: #2d2d2d;
       --text-main: #e0e0e0;
-      --chord-color: #ffffff;
-      /* Vit text för ackord */
-      --accent: #4e7678;
+      --chord-color: #ffffff; /* Vit text för ackord */
+      --accent: #4e7678; 
       --border: #333;
       --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       background-color: var(--bg-color);
       color: var(--text-main);
       font-family: var(--font-stack);
-      margin: 0;
-      padding: 0;
-
+      margin: 0; padding: 0;
+      
       /* FIX: Använd dvh (Dynamic Viewport Height) för bättre mobil-stöd */
       height: 100vh;
-      height: 100dvh;
-
-      display: flex;
-      flex-direction: column;
-
+      height: 100dvh; 
+      
+      display: flex; flex-direction: column;
+      
       /* FIX: Förhindra att hela "kroppen" scrollar bort toolbaren */
       overflow: hidden;
-      overscroll-behavior: none;
+      overscroll-behavior: none; 
     }
 
     /* --- TOOLBAR --- */
     .toolbar {
       background-color: var(--surface-color);
-      padding: 0 10px;
-      height: 40px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 0 10px; 
+      height: 40px; 
+      display: flex; justify-content: space-between; align-items: center;
       border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      z-index: 20;
-
+      flex-shrink: 0; z-index: 20;
+      
       /* FIX: Säkerställ att den stannar i toppen */
-      position: relative;
+      position: relative; 
     }
-
-    .title-area {
-      font-weight: bold;
-      font-size: 0.9rem;
-      letter-spacing: 0.5px;
-    }
-
-    .controls {
-      display: flex;
-      gap: 4px;
-    }
-
+    .title-area { font-weight: bold; font-size: 0.9rem; letter-spacing: 0.5px; }
+    .controls { display: flex; gap: 4px; }
+    
     button {
-      background: #333;
-      color: white;
-      border: 1px solid #444;
-      padding: 0 8px;
-      height: 26px;
-      border-radius: 3px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: #333; color: white; border: 1px solid #444;
+      padding: 0 8px; height: 26px; border-radius: 3px;
+      font-size: 0.8rem; cursor: pointer; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
     }
-
-    button:hover {
-      background: #444;
-    }
-
-    button.primary {
-      background-color: var(--accent);
-      border-color: var(--accent);
-    }
+    button:hover { background: #444; }
+    button.primary { background-color: var(--accent); border-color: var(--accent); }
 
     /* --- MAIN LAYOUT --- */
     .main-container {
-      display: flex;
-      flex-grow: 1;
-      overflow: hidden;
+      display: flex; flex-grow: 1; overflow: hidden;
     }
 
     /* --- VÄNSTER: BIBLIOTEK --- */
     .reference-panel {
       flex-grow: 2;
       background-color: var(--bg-color);
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
       border-right: 2px solid #000;
       overflow: hidden;
     }
-
+    
     .panel-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 10px;
-      background: #262626;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      height: 38px;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 10px; background: #262626; border-bottom: 1px solid var(--border);
+      flex-shrink: 0; height: 38px;
     }
-
     .panel-title {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      color: #888;
-      letter-spacing: 1px;
+      font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 1px;
     }
 
-    .add-section-container {
-      position: relative;
-    }
-
+    .add-section-container { position: relative; }
     .btn-add-new {
-      background: var(--accent);
-      border: none;
-      width: 24px;
-      height: 24px;
-      font-size: 1.2rem;
-      border-radius: 4px;
-      line-height: 1;
-      padding-bottom: 3px;
+      background: var(--accent); border: none; width: 24px; height: 24px; font-size: 1.2rem;
+      border-radius: 4px; line-height: 1; padding-bottom: 3px;
     }
-
+    
     .add-menu {
       display: none;
-      position: absolute;
-      top: 30px;
-      right: 0;
-      background: #333;
-      border: 1px solid #555;
-      border-radius: 4px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-      z-index: 100;
-      min-width: 150px;
+      position: absolute; top: 30px; right: 0;
+      background: #333; border: 1px solid #555;
+      border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+      z-index: 100; min-width: 150px;
     }
-
-    .add-menu.visible {
-      display: block;
-    }
-
+    .add-menu.visible { display: block; }
+    
     .add-menu-item {
-      padding: 8px 12px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      color: #eee;
+      padding: 8px 12px; cursor: pointer; font-size: 0.85rem; color: #eee;
       border-bottom: 1px solid #444;
     }
-
-    .add-menu-item:hover {
-      background: #444;
-    }
-
+    .add-menu-item:hover { background: #444; }
+    
     #add-menu-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 99;
-      display: none;
-      background: transparent;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      z-index: 99; display: none; background: transparent;
     }
-
-    #add-menu-overlay.visible {
-      display: block;
-    }
+    #add-menu-overlay.visible { display: block; }
 
 
     #unique-sections {
       padding: 8px;
       overflow-y: auto;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-content: flex-start;
-      height: 100%;
+      display: flex; flex-wrap: wrap; gap: 8px;
+      align-content: flex-start; height: 100%;
       /* FIX: Bättre scroll-upplevelse på mobil */
       -webkit-overflow-scrolling: touch;
     }
 
     .ref-card {
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 4px;
-      width: 48%;
-      min-width: 300px;
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      transition: transform 0.2s, box-shadow 0.2s;
+      width: 48%; min-width: 300px;
+      flex-grow: 1; display: flex; flex-direction: column;
+      position: relative; transition: transform 0.2s, box-shadow 0.2s;
     }
-
-    .ref-card.sortable-ghost {
-      opacity: 0.4;
-      background: #000;
-    }
-
+    .ref-card.sortable-ghost { opacity: 0.4; background: #000; }
     .ref-card.highlight {
-      box-shadow: 0 0 0 2px #fff;
-      transform: scale(1.01);
-      z-index: 5;
+      box-shadow: 0 0 0 2px #fff; transform: scale(1.01); z-index: 5;
     }
 
     .ref-header {
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0,0,0,0.3);
       padding: 4px 8px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      color: #fff;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.85rem; font-weight: bold; color: #fff;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-
+    
     .drag-handle {
-      cursor: grab;
-      color: rgba(255, 255, 255, 0.4);
-      font-size: 1.1rem;
-      margin-right: 8px;
-      line-height: 10px;
-      padding: 0 4px;
+      cursor: grab; color: rgba(255,255,255,0.4); font-size: 1.1rem;
+      margin-right: 8px; line-height: 10px; padding: 0 4px;
     }
-
-    .drag-handle:hover {
-      color: #fff;
-    }
-
-    .drag-handle:active {
-      cursor: grabbing;
-    }
+    .drag-handle:hover { color: #fff; }
+    .drag-handle:active { cursor: grabbing; }
 
     .btn-arrow-action {
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: #fff;
-      width: 24px;
-      height: 20px;
-      border-radius: 3px;
-      font-size: 0.9rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: rgba(255,255,255,0.2); border: none; color: #fff;
+      width: 24px; height: 20px; border-radius: 3px; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center;
       cursor: pointer;
     }
-
-    .btn-arrow-action:hover {
-      background: #fff;
-      color: #000;
-    }
+    .btn-arrow-action:hover { background: #fff; color: #000; }
 
     .ref-content {
-      padding: 8px;
-      font-family: monospace;
-      white-space: pre-wrap;
-      font-size: 1.5rem;
-      font-weight: bold;
+      padding: 8px; 
+      font-family: monospace; white-space: pre-wrap;
+      font-size: 1.5rem; font-weight: bold; 
       color: var(--chord-color);
-      line-height: 1.15;
-      word-spacing: 0.6em;
-      min-height: 60px;
+      line-height: 1.15; word-spacing: 0.6em; 
+      min-height: 60px; 
       cursor: text;
       outline: none;
     }
-
     .ref-content:focus {
-      background-color: rgba(0, 0, 0, 0.2);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+      background-color: rgba(0,0,0,0.2);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
     }
 
     /* --- HÖGER: TIDSLINJE --- */
     .structure-panel {
-      width: 100px;
-      min-width: 100px;
+      width: 100px; 
+      min-width: 100px; 
       max-width: 100px;
-      background-color: #161616;
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
+      background-color: #161616; display: flex; flex-direction: column; flex-shrink: 0;
     }
-
     .structure-header {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 38px;
-      padding: 0 5px;
-      background: #222;
-      border-bottom: 1px solid var(--border);
-      color: #888;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      overflow: hidden;
-      white-space: nowrap;
+      display: flex; justify-content: center; align-items: center;
+      height: 38px; padding: 0 5px;
+      background: #222; border-bottom: 1px solid var(--border); 
+      color: #888; font-size: 0.75rem; text-transform: uppercase;
+      overflow: hidden; white-space: nowrap;
     }
 
     #timeline-list {
-      padding: 5px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
+      padding: 5px; overflow-y: auto; display: flex; flex-direction: column; 
       gap: 5px;
+      /* FIX: Bättre scroll-upplevelse på mobil */
+      -webkit-overflow-scrolling: touch;
     }
 
     .timeline-block {
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 3px 5px;
-      border-radius: 2px;
-      cursor: grab;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 3px 5px; border-radius: 2px;
+      cursor: grab; display: flex; justify-content: space-between; align-items: center;
       user-select: none;
     }
+    .timeline-block:hover { filter: brightness(1.2); }
+    .timeline-block:active { cursor: grabbing; }
 
-    .timeline-block:hover {
-      filter: brightness(1.2);
-    }
-
-    .timeline-block:active {
-      cursor: grabbing;
-    }
-
-    .t-title {
-      font-weight: bold;
-      font-size: 0.75rem;
-      color: #fff;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .t-title { 
+      font-weight: bold; font-size: 0.75rem; color: #fff; 
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       margin-right: 2px;
     }
-
-    .t-remove {
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 0.85rem;
-      cursor: pointer;
-      padding: 0 4px;
-    }
-
-    .t-remove:hover {
-      color: #fff;
-    }
+    .t-remove { color: rgba(255,255,255,0.6); font-size: 0.85rem; cursor: pointer; padding: 0 4px; }
+    .t-remove:hover { color: #fff; }
 
     /* --- EDITOR --- */
     #editor-view {
-      display: none;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: var(--bg-color);
-      z-index: 50;
-      flex-direction: column;
+      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg-color); z-index: 50; flex-direction: column;
     }
-
-    #editor-view.visible {
-      display: flex;
-    }
-
+    #editor-view.visible { display: flex; }
+    
     .editor-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 10px;
-      background: var(--surface-color);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 10px; background: var(--surface-color);
       border-bottom: 1px solid var(--border);
-      height: 40px;
-      flex-shrink: 0;
+      height: 40px; flex-shrink: 0;
     }
 
     textarea {
-      flex-grow: 1;
-      background: #1a1a1a;
-      color: #fff;
-      border: none;
-      padding: 20px;
-      font-family: monospace;
-      font-size: 16px;
-      resize: none;
-      outline: none;
+      flex-grow: 1; background: #1a1a1a; color: #fff; border: none; padding: 20px;
+      font-family: monospace; font-size: 16px; resize: none; outline: none;
     }
 
     /* SIDOMENY */
     #side-menu {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 280px;
-      height: 100%;
-      background: #252525;
-      z-index: 60;
-      transform: translateX(-100%);
-      transition: transform 0.3s ease;
-      border-right: 1px solid #333;
-      display: flex;
-      flex-direction: column;
+      position: absolute; top: 0; left: 0; width: 280px; height: 100%;
+      background: #252525; z-index: 60; transform: translateX(-100%);
+      transition: transform 0.3s ease; border-right: 1px solid #333; display: flex; flex-direction: column;
     }
-
-    #side-menu.open {
-      transform: translateX(0);
+    #side-menu.open { transform: translateX(0); }
+    #menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 55; display: none; }
+    #menu-overlay.visible { display: block; }
+    .menu-footer { padding: 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #333; background: #2a2a2a; }
+    #song-list { flex-grow: 1; list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+    
+    .song-item { 
+      padding: 12px 10px; border-bottom: 1px solid #333; cursor: pointer; 
+      display: flex; justify-content: space-between; font-size: 0.9rem;
+      background: #252525; /* Viktigt för drag-ghost */
     }
-
-    #menu-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 55;
-      display: none;
-    }
-
-    #menu-overlay.visible {
-      display: block;
-    }
-
-    .menu-footer {
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      border-top: 1px solid #333;
-      background: #2a2a2a;
-    }
-
-    #song-list {
-      flex-grow: 1;
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      overflow-y: auto;
-    }
-
-    .song-item {
-      padding: 12px 10px;
-      border-bottom: 1px solid #333;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.9rem;
-    }
-
-    .song-item:hover {
-      background: #333;
-    }
-
-    .menu-btn {
-      width: 100%;
-      height: 32px;
-      margin-bottom: 2px;
-    }
+    .song-item:hover { background: #333; }
+    .song-item.sortable-ghost { opacity: 0.4; background: #000; }
+    
+    .menu-btn { width: 100%; height: 32px; margin-bottom: 2px; }
 
     @media (max-width: 768px) {
-      .ref-card {
-        width: 100%;
-        min-width: 100%;
-      }
+      .ref-card { width: 100%; min-width: 100%; } 
     }
   </style>
 </head>
-
 <body>
 
   <div id="add-menu-overlay" onclick="toggleAddMenu(false)"></div>
 
   <div id="side-menu">
-    <div
-      style="padding:15px 10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; background:#222;">
+    <div style="padding:15px 10px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; background:#222;">
       <span style="font-weight:bold; font-size:1.1rem;">Mina Låtar</span>
       <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:1.2rem;">✕</button>
     </div>
     <ul id="song-list"></ul>
     <div class="menu-footer">
       <button onclick="createNewSong()" class="primary menu-btn">+ Ny Låt</button>
-
+      
       <div style="height:1px; background:#444; margin:5px 0;"></div>
-
+      
       <button onclick="exportJSON()" class="menu-btn">Spara Backup (Alla låtar)</button>
       <input type="file" id="file-import" accept=".json" onchange="importJSON(this)" style="display:none">
       <button onclick="document.getElementById('file-import').click()" class="menu-btn">Importera Backup</button>
-
+      
       <div style="height:1px; background:#444; margin:5px 0;"></div>
-
-      <button onclick="exportAllPDFs()" class="menu-btn" style="background:#2c4446; border-color:#385557;">Ladda ner ZIP
-        (PDF:er)</button>
+      
+      <button onclick="exportAllPDFs()" class="menu-btn" style="background:#2c4446; border-color:#385557;">Ladda ner ZIP (PDF:er)</button>
     </div>
   </div>
   <div id="menu-overlay" onclick="toggleMenu()"></div>
@@ -532,14 +301,14 @@
   </div>
 
   <div class="main-container">
-
+    
     <div class="reference-panel">
       <div class="panel-header-row">
         <span class="panel-title">Bibliotek (Dra för att sortera)</span>
-
+        
         <div class="add-section-container">
           <button class="btn-add-new" title="Lägg till ny sektion" onclick="toggleAddMenu(true)">+</button>
-
+          
           <div class="add-menu" id="section-dropdown">
             <div class="add-menu-item" onclick="addNewSection('Intro')">Intro</div>
             <div class="add-menu-item" onclick="addNewSection('Verse')">Verse</div>
@@ -553,46 +322,45 @@
 
       </div>
       <div id="unique-sections">
-      </div>
+        </div>
     </div>
 
     <div class="structure-panel">
       <div class="structure-header">Tidslinje</div>
       <div id="timeline-list">
-      </div>
+        </div>
     </div>
 
   </div>
 
   <div id="editor-view">
     <div class="editor-header">
-      <span style="font-weight:bold; font-size:0.9rem; color:#888;">REDIGERA RÅTEXT</span>
-      <button onclick="toggleEditor(false)" class="primary">Spara & Visa</button>
+       <span style="font-weight:bold; font-size:0.9rem; color:#888;">REDIGERA RÅTEXT</span>
+       <button onclick="toggleEditor(false)" class="primary">Spara & Visa</button>
     </div>
-    <textarea id="raw-input" spellcheck="false"
-      placeholder="Titel&#10;# Intro&#10;Am   G&#10;# Vers 1&#10;Am   C..."></textarea>
+    <textarea id="raw-input" spellcheck="false" placeholder="Titel&#10;# Intro&#10;Am   G&#10;# Vers 1&#10;Am   C..."></textarea>
   </div>
 
   <script>
     /* --- CONFIG & DATA --- */
     const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const NOTES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-
+    
     const SECTION_COLORS = {
-      'Verse': '#705a3a',
-      'Chorus': '#57667a',
-      'Stick': '#5d703a',
+      'Verse': '#705a3a',      
+      'Chorus': '#57667a',     
+      'Stick': '#5d703a', 
       'Bridge': '#3a7065',
-      'Solo': '#878786',
-      'Intro': '#4e7678',
-      'Outro': '#8c7374',
+      'Solo': '#878786',       
+      'Intro': '#4e7678',      
+      'Outro': '#8c7374',      
       'Instr': '#3b557a',
       'Instru': '#3b557a',
       'Default': '#696966'
     };
 
     function normalizeSectionName(name) {
-      return name.replace(/\s+\d+$/, '').trim();
+      return name.replace(/\s+\d+$/, '').trim(); 
     }
 
     function getColor(title) {
@@ -605,7 +373,7 @@
 
     let songs = [];
     let currentSongIndex = 0;
-
+    
     const rawInput = document.getElementById('raw-input');
     const displayTitle = document.getElementById('display-title');
     const timelineList = document.getElementById('timeline-list');
@@ -615,24 +383,58 @@
     const editorView = document.getElementById('editor-view');
     const songListEl = document.getElementById('song-list');
 
-    /* FIX: Variabler för add-menyn */
+    /* Variabler för add-menyn */
     const sectionDropdown = document.getElementById('section-dropdown');
     const addMenuOverlay = document.getElementById('add-menu-overlay');
 
+    /* --- SORTERING (FIXAD MED DELAY) --- */
+
+    // 1. Tidslinje (Höger panel)
     new Sortable(timelineList, {
       animation: 150,
       ghostClass: 'sortable-ghost',
+      // FIX: Lägg till delay så man kan scrolla utan att flytta block
+      delay: 150, 
+      delayOnTouchOnly: true,
       onEnd: () => rebuildTextFromTimeline()
     });
 
+    // 2. Bibliotek (Vänster panel)
     new Sortable(uniqueSectionsContainer, {
-      animation: 150,
-      handle: '.drag-handle',
-      ghostClass: 'sortable-ghost'
+        animation: 150,
+        handle: '.drag-handle', 
+        ghostClass: 'sortable-ghost',
+        // FIX: Bra att ha här också
+        delay: 150,
+        delayOnTouchOnly: true
     });
 
-    const DEFAULT_SONG =
-      `Min Låt
+    // 3. Låtlistan
+    new Sortable(songListEl, {
+      animation: 150,
+      handle: '.song-drag-handle', 
+      ghostClass: 'sortable-ghost',
+      delay: 150, 
+      delayOnTouchOnly: true,
+      onEnd: function (evt) {
+        const movedItem = songs.splice(evt.oldIndex, 1)[0];
+        songs.splice(evt.newIndex, 0, movedItem);
+        
+        save();
+        updateSongList();
+        
+        if (currentSongIndex === evt.oldIndex) {
+            currentSongIndex = evt.newIndex;
+        } else if (currentSongIndex > evt.oldIndex && currentSongIndex <= evt.newIndex) {
+            currentSongIndex--;
+        } else if (currentSongIndex < evt.oldIndex && currentSongIndex >= evt.newIndex) {
+            currentSongIndex++;
+        }
+      }
+    });
+
+    const DEFAULT_SONG = 
+`Min Låt
 # Intro
 Bm   A   G
 
@@ -646,7 +448,6 @@ Bm   A   G   F#7`;
       loadSong(0);
     }
 
-    /* FIX: Funktion för att hantera add-menyn */
     function toggleAddMenu(show) {
       if (show) {
         sectionDropdown.classList.add('visible');
@@ -657,7 +458,6 @@ Bm   A   G   F#7`;
       }
     }
 
-    /* --- PARSING (FIXED for empty lines) --- */
     function parseTextToBlocks(text) {
       const lines = text.split('\n');
       const blocks = [];
@@ -671,7 +471,7 @@ Bm   A   G   F#7`;
       }
 
       lines.forEach((line, index) => {
-        if (index === 0) return;
+        if (index === 0) return; 
         const trimmed = line.trim();
         if (trimmed.startsWith('#')) {
           if (currentBlock.title) {
@@ -690,10 +490,9 @@ Bm   A   G   F#7`;
       return blocks;
     }
 
-    /* --- RENDERING --- */
     function renderInterface() {
       const blocks = parseTextToBlocks(rawInput.value);
-
+      
       timelineList.innerHTML = '';
       blocks.forEach(block => {
         timelineList.appendChild(createTimelineBlock(block));
@@ -701,7 +500,7 @@ Bm   A   G   F#7`;
 
       const currentOrder = [];
       uniqueSectionsContainer.querySelectorAll('.ref-card').forEach(card => {
-        currentOrder.push(card.dataset.masterTitle);
+          currentOrder.push(card.dataset.masterTitle);
       });
 
       const masterMap = {};
@@ -714,14 +513,14 @@ Bm   A   G   F#7`;
 
       let keys = Object.keys(masterMap);
       if (currentOrder.length > 0) {
-        keys.sort((a, b) => {
-          const idxA = currentOrder.indexOf(a);
-          const idxB = currentOrder.indexOf(b);
-          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-          if (idxA !== -1) return -1;
-          if (idxB !== -1) return 1;
-          return 0;
-        });
+          keys.sort((a, b) => {
+              const idxA = currentOrder.indexOf(a);
+              const idxB = currentOrder.indexOf(b);
+              if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+              if (idxA !== -1) return -1;
+              if (idxB !== -1) return 1;
+              return 0;
+          });
       }
 
       uniqueSectionsContainer.innerHTML = '';
@@ -737,13 +536,13 @@ Bm   A   G   F#7`;
       div.dataset.title = block.title;
       div.dataset.content = JSON.stringify(block.content);
       div.style.backgroundColor = getColor(block.title);
-
+      
       div.innerHTML = `
         <span class="t-title">${block.title}</span>
         <span class="t-remove" onclick="removeFromTimeline(this)">✕</span>
       `;
       div.addEventListener('click', (e) => {
-        if (e.target.classList.contains('t-remove')) return;
+        if(e.target.classList.contains('t-remove')) return;
         highlightReference(normalizeSectionName(block.title));
       });
       return div;
@@ -775,55 +574,53 @@ Bm   A   G   F#7`;
       return div;
     }
 
-    /* --- LOGIC --- */
     function liveUpdateSection(sectionTitle, newContent) {
       const newLines = newContent.split('\n');
       const timelineItems = document.querySelectorAll('.timeline-block');
-
+      
       timelineItems.forEach(item => {
-        if (normalizeSectionName(item.dataset.title) === sectionTitle) {
-          item.dataset.content = JSON.stringify(newLines);
-        }
+         if (normalizeSectionName(item.dataset.title) === sectionTitle) {
+             item.dataset.content = JSON.stringify(newLines);
+         }
       });
 
       const refCard = document.getElementById('ref-' + sectionTitle.replace(/\s+/g, '-'));
-      if (refCard) {
-        refCard.dataset.content = JSON.stringify(newLines);
+      if(refCard) {
+         refCard.dataset.content = JSON.stringify(newLines);
       }
 
       let text = rawInput.value;
       const regex = new RegExp(`(# ${sectionTitle}.*?\\n)([\\s\\S]*?)(?=\\n#|$)`, 'g');
       const updatedText = text.replace(regex, `$1${newContent}`);
-
+      
       if (rawInput.value !== updatedText) {
-        rawInput.value = updatedText;
-        save();
+          rawInput.value = updatedText;
+          save(); 
       }
     }
 
     function addNewSection(type) {
-      // Stäng menyn när ett val gjorts
       toggleAddMenu(false);
 
       const blocks = parseTextToBlocks(rawInput.value);
       const exists = blocks.some(b => normalizeSectionName(b.title) === type);
-
+      
       if (!exists) {
-        const currentText = rawInput.value;
-        const newSectionText = `\n# ${type}\n `;
-        rawInput.value = currentText + newSectionText;
-        save();
-        renderInterface();
+         const currentText = rawInput.value;
+         const newSectionText = `\n# ${type}\n `; 
+         rawInput.value = currentText + newSectionText;
+         save();
+         renderInterface(); 
       }
 
       setTimeout(() => {
         const cardId = 'ref-' + type.replace(/\s+/g, '-');
         const card = document.getElementById(cardId);
-
-        if (card) {
+        
+        if(card) {
           card.scrollIntoView({ behavior: 'smooth', block: 'center' });
           const contentDiv = card.querySelector('.ref-content');
-          if (contentDiv) {
+          if(contentDiv) {
             contentDiv.focus();
             const range = document.createRange();
             const sel = window.getSelection();
@@ -840,7 +637,7 @@ Bm   A   G   F#7`;
       const refCard = document.getElementById('ref-' + title.replace(/\s+/g, '-'));
       let content = [];
       if (refCard && refCard.dataset.content) {
-        content = JSON.parse(refCard.dataset.content);
+         content = JSON.parse(refCard.dataset.content);
       }
       const newBlock = { title: title, content: content };
       timelineList.appendChild(createTimelineBlock(newBlock));
@@ -877,10 +674,13 @@ Bm   A   G   F#7`;
     }
 
     function loadSong(index) {
-      if (!songs[index]) index = 0; currentSongIndex = index;
+      if(!songs[index]) index=0; 
+      currentSongIndex = index;
       rawInput.value = songs[index].content;
-      updateTitle(); renderInterface(); updateSongList();
+      updateTitle(); 
+      renderInterface(); 
     }
+    
     function updateTitle() {
       const l = rawInput.value.split('\n')[0].trim();
       songs[currentSongIndex].title = l || "Namnlös";
@@ -891,75 +691,57 @@ Bm   A   G   F#7`;
       localStorage.setItem('prochorder_v11', JSON.stringify(songs));
     }
     function createNewSong() {
-      songs.push({ title: "Ny", content: "Ny\n# Intro\n..." });
-      loadSong(songs.length - 1); toggleMenu(); toggleEditor(true);
+      songs.push({title:"Ny", content:"Ny\n# Intro\n..."});
+      loadSong(songs.length-1); toggleMenu(); toggleEditor(true);
     }
+    
     function updateSongList() {
       songListEl.innerHTML = '';
-      songs.forEach((s, i) => {
+      songs.forEach((s,i) => {
         const li = document.createElement('li');
-        li.className = 'song-item';
-        // Spara index så vi kan mappa om arrayen senare
-        li.dataset.oldIndex = i;
-
+        li.className='song-item';
+        
         li.innerHTML = `
           <div style="display:flex; align-items:center; flex-grow:1; overflow:hidden;">
-            <span class="song-drag-handle" style="cursor:grab; padding-right:10px; color:#666; font-size:1.2rem;">⠿</span>
+            <span class="song-drag-handle" style="cursor:grab; padding-right:12px; color:#777; font-size:1.3rem;">⠿</span>
             <span class="song-title-click" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.title}</span>
           </div>
-          <span onclick="delSong(${i}, event)" style="padding-left:10px;">🗑</span>
+          <span onclick="delSong(${i}, event)" style="padding-left:15px; color:#888;">🗑</span>
         `;
-
-        // Klick på titeln laddar låten
+        
         li.querySelector('.song-title-click').onclick = () => { loadSong(i); toggleMenu(); };
-
+        
         songListEl.appendChild(li);
       });
     }
-    // Sortering för Låtlistan
-    new Sortable(songListEl, {
-      animation: 150,
-      handle: '.song-drag-handle', // Man måste dra i handtaget
-      ghostClass: 'sortable-ghost',
-      onEnd: function (evt) {
-        // Skapa en ny array baserat på den nya ordningen i DOM:en
-        const newSongsOrder = [];
-        const items = songListEl.querySelectorAll('.song-item');
-        
-        items.forEach(item => {
-            const oldIdx = parseInt(item.dataset.oldIndex);
-            newSongsOrder.push(songs[oldIdx]);
-        });
-
-        // Uppdatera huvud-arrayen
-        songs = newSongsOrder;
-        
-        // Uppdatera aktuellt index om vi flyttade den låt vi spelar just nu
-        // (Enklast är att bara ladda om listan så indexen stämmer för Delete-knapparna)
+    
+    function delSong(i,e){ e.stopPropagation(); if(confirm("Ta bort?")){songs.splice(i,1); if(!songs.length) createNewSong(); else loadSong(0); updateSongList(); save();}}
+    
+    function toggleMenu(){ 
+      sideMenu.classList.toggle('open'); 
+      menuOverlay.classList.toggle('visible'); 
+      if(sideMenu.classList.contains('open')) {
         updateSongList(); 
-        save();
       }
-    });
-    function delSong(i, e) { e.stopPropagation(); if (confirm("Ta bort?")) { songs.splice(i, 1); if (!songs.length) createNewSong(); else loadSong(0); save(); } }
-
-    function toggleMenu() { sideMenu.classList.toggle('open'); menuOverlay.classList.toggle('visible'); }
-    function toggleEditor(show) {
-      if (show) editorView.classList.add('visible');
+    }
+    
+    function toggleEditor(show){
+      if(show) editorView.classList.add('visible');
       else { editorView.classList.remove('visible'); updateTitle(); renderInterface(); save(); }
     }
-
+    
     function transpose(steps) {
       const text = rawInput.value;
       const lines = text.split('\n');
       const newLines = lines.map((line, i) => {
-        if (i === 0 || line.trim().startsWith('#')) return line;
+        if(i===0 || line.trim().startsWith('#')) return line;
         return line.replace(/[A-G][b#]?/g, (match) => {
-          let index = NOTES.indexOf(match);
-          if (index === -1) index = NOTES_FLAT.indexOf(match);
-          if (index === -1) return match;
-          let newIndex = (index + steps) % 12;
-          if (newIndex < 0) newIndex += 12;
-          return NOTES[newIndex];
+             let index = NOTES.indexOf(match);
+             if (index === -1) index = NOTES_FLAT.indexOf(match);
+             if (index === -1) return match;
+             let newIndex = (index + steps) % 12;
+             if (newIndex < 0) newIndex += 12;
+             return NOTES[newIndex];
         });
       });
       rawInput.value = newLines.join('\n');
@@ -967,67 +749,66 @@ Bm   A   G   F#7`;
     }
     document.getElementById('btn-trans-up').onclick = () => transpose(1);
     document.getElementById('btn-trans-down').onclick = () => transpose(-1);
-
+    
     /* --- EXPORT / IMPORT --- */
     function exportJSON() {
-      save();
-      const blob = new Blob([JSON.stringify(songs)], { type: "application/json" });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "prochorder_alla_latar.json"; a.click();
+        save();
+        const blob = new Blob([JSON.stringify(songs)], {type:"application/json"});
+        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="prochorder_alla_latar.json"; a.click();
     }
     function importJSON(inp) {
-      const f = inp.files[0]; if (!f) return;
-      const r = new FileReader(); r.onload = e => { songs = JSON.parse(e.target.result); loadSong(0); toggleMenu(); }; r.readAsText(f);
+        const f = inp.files[0]; if(!f)return;
+        const r = new FileReader(); r.onload=e=>{songs=JSON.parse(e.target.result); loadSong(0); toggleMenu();}; r.readAsText(f);
     }
 
     /* --- MASS PDF/ZIP EXPORT --- */
     async function exportAllPDFs() {
       save();
-      if (!confirm("Detta skapar en ZIP-fil med en PDF för varje låt. Det kan ta några sekunder.")) return;
-
+      if(!confirm("Detta skapar en ZIP-fil med en PDF för varje låt. Det kan ta några sekunder.")) return;
+      
       const zip = new JSZip();
-
+      
       for (const song of songs) {
         const doc = new jspdf.jsPDF();
-
+        
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
         doc.text(song.title, 15, 20);
-
+        
         doc.setFont("courier", "normal");
         doc.setFontSize(12);
-
+        
         let y = 35;
         const lines = song.content.split('\n');
-
+        
         lines.forEach((line, index) => {
-          if (index === 0) return;
-
+          if (index === 0) return; 
+          
           if (line.trim().startsWith('#')) {
-            doc.setFont("courier", "bold");
-            doc.setTextColor(100);
-            if (y > 270) { doc.addPage(); y = 20; }
-            doc.text(line.replace('#', '').trim().toUpperCase(), 15, y);
-            doc.setTextColor(0);
-            doc.setFont("courier", "normal");
-            y += 7;
+             doc.setFont("courier", "bold");
+             doc.setTextColor(100); 
+             if (y > 270) { doc.addPage(); y = 20; }
+             doc.text(line.replace('#', '').trim().toUpperCase(), 15, y);
+             doc.setTextColor(0); 
+             doc.setFont("courier", "normal");
+             y += 7;
           } else {
-            if (y > 280) { doc.addPage(); y = 20; }
-            doc.text(line, 15, y);
-            y += 6;
+             if (y > 280) { doc.addPage(); y = 20; }
+             doc.text(line, 15, y);
+             y += 6;
           }
         });
-
+        
         const safeFilename = song.title.replace(/[^a-z0-9åäö ]/gi, '_') + ".pdf";
         const pdfBlob = doc.output('blob');
         zip.file(safeFilename, pdfBlob);
       }
-
-      const content = await zip.generateAsync({ type: "blob" });
+      
+      const content = await zip.generateAsync({type:"blob"});
       saveAs(content, "Mina_Latar_PDF.zip");
     }
 
     init();
   </script>
 </body>
-
 </html>
