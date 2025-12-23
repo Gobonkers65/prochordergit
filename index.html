@@ -16,7 +16,7 @@
       --surface-color: #252525;
       --panel-bg: #2d2d2d;
       --text-main: #e0e0e0;
-      --chord-color: #ffffff; /* Vit text för ackord */
+      --chord-color: #ffffff; 
       --accent: #4e7678; 
       --border: #333;
       --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -29,14 +29,9 @@
       color: var(--text-main);
       font-family: var(--font-stack);
       margin: 0; padding: 0;
-      
-      /* FIX: Använd dvh (Dynamic Viewport Height) för bättre mobil-stöd */
       height: 100vh;
       height: 100dvh; 
-      
       display: flex; flex-direction: column;
-      
-      /* FIX: Förhindra att hela "kroppen" scrollar bort toolbaren */
       overflow: hidden;
       overscroll-behavior: none; 
     }
@@ -49,8 +44,6 @@
       display: flex; justify-content: space-between; align-items: center;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0; z-index: 20;
-      
-      /* FIX: Säkerställ att den stannar i toppen */
       position: relative; 
     }
     .title-area { font-weight: bold; font-size: 0.9rem; letter-spacing: 0.5px; }
@@ -122,7 +115,6 @@
       overflow-y: auto;
       display: flex; flex-wrap: wrap; gap: 8px;
       align-content: flex-start; height: 100%;
-      /* FIX: Bättre scroll-upplevelse på mobil */
       -webkit-overflow-scrolling: touch;
     }
 
@@ -149,6 +141,7 @@
     .drag-handle {
       cursor: grab; color: rgba(255,255,255,0.4); font-size: 1.1rem;
       margin-right: 8px; line-height: 10px; padding: 0 4px;
+      touch-action: none; /* VIKTIGT: Förhindrar scroll när man drar */
     }
     .drag-handle:hover { color: #fff; }
     .drag-handle:active { cursor: grabbing; }
@@ -194,7 +187,6 @@
     #timeline-list {
       padding: 5px; overflow-y: auto; display: flex; flex-direction: column; 
       gap: 5px;
-      /* FIX: Bättre scroll-upplevelse på mobil */
       -webkit-overflow-scrolling: touch;
     }
 
@@ -250,12 +242,35 @@
     .song-item { 
       padding: 12px 10px; border-bottom: 1px solid #333; cursor: pointer; 
       display: flex; justify-content: space-between; font-size: 0.9rem;
-      background: #252525; /* Viktigt för drag-ghost */
+      background: #252525; 
     }
     .song-item:hover { background: #333; }
     .song-item.sortable-ghost { opacity: 0.4; background: #000; }
     
+    .song-drag-handle {
+        cursor: grab; padding-right:12px; color:#777; font-size:1.3rem;
+        touch-action: none; 
+    }
+
     .menu-btn { width: 100%; height: 32px; margin-bottom: 2px; }
+
+    /* SÖKFÄLT STIL */
+    #search-box-container {
+      padding: 10px; 
+      border-bottom: 1px solid #333; 
+      background: #222;
+    }
+    #song-search {
+      width: 100%; 
+      padding: 8px; 
+      border-radius: 4px; 
+      border: 1px solid #444; 
+      background: #333; 
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    #song-search:focus { border-color: var(--accent); }
 
     @media (max-width: 768px) {
       .ref-card { width: 100%; min-width: 100%; } 
@@ -271,7 +286,13 @@
       <span style="font-weight:bold; font-size:1.1rem;">Mina Låtar</span>
       <button onclick="toggleMenu()" style="background:none; border:none; color:#fff; font-size:1.2rem;">✕</button>
     </div>
+    
+    <div id="search-box-container">
+      <input type="text" id="song-search" placeholder="Sök låt..." oninput="filterSongs()">
+    </div>
+
     <ul id="song-list"></ul>
+    
     <div class="menu-footer">
       <button onclick="createNewSong()" class="primary menu-btn">+ Ny Låt</button>
       
@@ -371,8 +392,13 @@
       return SECTION_COLORS['Default'];
     }
 
+    function generateId() {
+      return Math.random().toString(36).substr(2, 9);
+    }
+
     let songs = [];
-    let currentSongIndex = 0;
+    let currentSongId = null; 
+    let wakeLock = null; // För Wake Lock
     
     const rawInput = document.getElementById('raw-input');
     const displayTitle = document.getElementById('display-title');
@@ -382,29 +408,60 @@
     const menuOverlay = document.getElementById('menu-overlay');
     const editorView = document.getElementById('editor-view');
     const songListEl = document.getElementById('song-list');
+    const songSearchInput = document.getElementById('song-search');
 
-    /* Variabler för add-menyn */
     const sectionDropdown = document.getElementById('section-dropdown');
     const addMenuOverlay = document.getElementById('add-menu-overlay');
 
-    /* --- SORTERING (FIXAD MED DELAY) --- */
+    /* --- WAKE LOCK IMPLEMENTERING --- */
+    async function activateWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Skärmen hålls vaken');
+          
+          wakeLock.addEventListener('release', () => {
+            console.log('Skärmlåset släpptes');
+          });
+        } catch (err) {
+          console.error(`Kunde inte aktivera Wake Lock: ${err.name}, ${err.message}`);
+        }
+      }
+    }
 
-    // 1. Tidslinje (Höger panel)
+    // Återaktivera om man byter flik och kommer tillbaka
+    document.addEventListener('visibilitychange', async () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        await activateWakeLock();
+      }
+    });
+
+    // Aktivera vid första interaktion (webbläsare kräver detta)
+    document.addEventListener('click', () => {
+        if(!wakeLock) activateWakeLock();
+    }, { once: true });
+    
+    document.addEventListener('touchstart', () => {
+        if(!wakeLock) activateWakeLock();
+    }, { once: true });
+
+
+    /* --- SORTERING --- */
+
+    // 1. Tidslinje
     new Sortable(timelineList, {
       animation: 150,
       ghostClass: 'sortable-ghost',
-      // FIX: Lägg till delay så man kan scrolla utan att flytta block
       delay: 150, 
       delayOnTouchOnly: true,
       onEnd: () => rebuildTextFromTimeline()
     });
 
-    // 2. Bibliotek (Vänster panel)
+    // 2. Bibliotek
     new Sortable(uniqueSectionsContainer, {
         animation: 150,
         handle: '.drag-handle', 
         ghostClass: 'sortable-ghost',
-        // FIX: Bra att ha här också
         delay: 150,
         delayOnTouchOnly: true
     });
@@ -414,24 +471,70 @@
       animation: 150,
       handle: '.song-drag-handle', 
       ghostClass: 'sortable-ghost',
-      delay: 150, 
-      delayOnTouchOnly: true,
+      forceFallback: true, 
+      fallbackTolerance: 3, 
+      scroll: true, 
+      scrollSensitivity: 50,
+      scrollSpeed: 20,
+      
       onEnd: function (evt) {
-        const movedItem = songs.splice(evt.oldIndex, 1)[0];
-        songs.splice(evt.newIndex, 0, movedItem);
+        // Läs av ordningen från skärmen
+        const newOrder = [];
+        const domItems = songListEl.querySelectorAll('.song-item');
         
+        domItems.forEach(item => {
+            const id = item.dataset.id;
+            const songObj = songs.find(s => s.id === id);
+            if (songObj) newOrder.push(songObj);
+        });
+
+        songs = newOrder;
         save();
-        updateSongList();
-        
-        if (currentSongIndex === evt.oldIndex) {
-            currentSongIndex = evt.newIndex;
-        } else if (currentSongIndex > evt.oldIndex && currentSongIndex <= evt.newIndex) {
-            currentSongIndex--;
-        } else if (currentSongIndex < evt.oldIndex && currentSongIndex >= evt.newIndex) {
-            currentSongIndex++;
-        }
       }
     });
+
+    /* --- SÖKFUNKTION (SMART SORTERING) --- */
+    function filterSongs() {
+      const query = songSearchInput.value.toLowerCase();
+      
+      if (!query) {
+          updateSongList();
+          return;
+      }
+
+      const items = Array.from(songListEl.querySelectorAll('.song-item'));
+
+      items.sort((a, b) => {
+          const titleA = a.querySelector('.song-title-click').innerText.toLowerCase();
+          const titleB = b.querySelector('.song-title-click').innerText.toLowerCase();
+
+          // Ta bort siffror/bindestreck i början
+          const cleanA = titleA.replace(/^[\d\s-]*\s*/, '');
+          const cleanB = titleB.replace(/^[\d\s-]*\s*/, '');
+
+          const startsA = cleanA.startsWith(query);
+          const startsB = cleanB.startsWith(query);
+
+          if (startsA && !startsB) return -1;
+          if (!startsA && startsB) return 1;
+          
+          return cleanA.localeCompare(cleanB);
+      });
+
+      items.forEach(item => {
+        const titleSpan = item.querySelector('.song-title-click');
+        if(titleSpan) {
+           const title = titleSpan.innerText.toLowerCase();
+           
+           if(title.includes(query)) {
+             item.style.display = ''; 
+             songListEl.appendChild(item); 
+           } else {
+             item.style.display = 'none'; 
+           }
+        }
+      });
+    }
 
     const DEFAULT_SONG = 
 `Min Låt
@@ -443,9 +546,40 @@ Bm   A   G   F#7`;
 
     function init() {
       const saved = localStorage.getItem('prochorder_v11');
-      if (saved) songs = JSON.parse(saved);
-      else songs = [{ title: "Exempel-låt", content: DEFAULT_SONG }];
-      loadSong(0);
+      if (saved) {
+          const loaded = JSON.parse(saved);
+          migrateAndLoad(loaded);
+      } else {
+          migrateAndLoad([{ title: "Exempel-låt", content: DEFAULT_SONG, id: generateId() }]);
+      }
+    }
+
+    function migrateAndLoad(loadedSongs) {
+        let needsSave = false;
+        
+        songs = loadedSongs.map(s => {
+            if(!s.id) { s.id = generateId(); needsSave = true; }
+            
+            // Konvertera ::Verse:: -> # Verse
+            if(s.content && s.content.includes('::')) {
+               s.content = s.content.replace(/^::(.+?)::/gm, '# $1');
+               needsSave = true;
+            }
+            
+            // Fixa titel
+            const firstLine = s.content.trim().split('\n')[0];
+            if(firstLine && (firstLine.startsWith('#') || firstLine.startsWith('::'))) {
+                s.content = s.title + '\n\n' + s.content;
+                needsSave = true;
+            }
+            
+            return s;
+        });
+
+        if(needsSave) save();
+        
+        if(songs.length > 0) loadSong(songs[0].id);
+        else createNewSong();
     }
 
     function toggleAddMenu(show) {
@@ -464,14 +598,16 @@ Bm   A   G   F#7`;
       let currentBlock = { title: null, content: [] };
 
       function trimTrailingEmptyLines(arr) {
-        while (arr.length > 0 && arr[arr.length - 1].trim() === '') {
-          arr.pop();
-        }
+        while (arr.length > 0 && arr[arr.length - 1].trim() === '') arr.pop();
         return arr;
       }
 
       lines.forEach((line, index) => {
-        if (index === 0) return; 
+        if (index === 0) {
+            const trimmed = line.trim();
+            if(!trimmed.startsWith('#')) return; 
+        }
+        
         const trimmed = line.trim();
         if (trimmed.startsWith('#')) {
           if (currentBlock.title) {
@@ -661,7 +797,10 @@ Bm   A   G   F#7`;
     }
 
     function rebuildTextFromTimeline() {
-      const title = songs[currentSongIndex].title;
+      const song = songs.find(s => s.id === currentSongId);
+      if(!song) return;
+
+      const title = song.title;
       let newText = title + "\n\n";
       const items = timelineList.querySelectorAll('.timeline-block');
       items.forEach(item => {
@@ -673,54 +812,81 @@ Bm   A   G   F#7`;
       save();
     }
 
-    function loadSong(index) {
-      if(!songs[index]) index=0; 
-      currentSongIndex = index;
-      rawInput.value = songs[index].content;
+    function loadSong(id) {
+      const song = songs.find(s => s.id === id);
+      if(!song) return;
+      
+      currentSongId = id;
+      rawInput.value = song.content;
       updateTitle(); 
       renderInterface(); 
     }
     
     function updateTitle() {
       const l = rawInput.value.split('\n')[0].trim();
-      songs[currentSongIndex].title = l || "Namnlös";
-      displayTitle.textContent = songs[currentSongIndex].title;
+      const song = songs.find(s => s.id === currentSongId);
+      if(song) {
+          song.title = l || "Namnlös";
+          displayTitle.textContent = song.title;
+      }
     }
+    
     function save() {
-      songs[currentSongIndex].content = rawInput.value;
+      const song = songs.find(s => s.id === currentSongId);
+      if(song) {
+          song.content = rawInput.value;
+      }
       localStorage.setItem('prochorder_v11', JSON.stringify(songs));
     }
+    
     function createNewSong() {
-      songs.push({title:"Ny", content:"Ny\n# Intro\n..."});
-      loadSong(songs.length-1); toggleMenu(); toggleEditor(true);
+      const newId = generateId();
+      songs.push({title:"Ny", content:"Ny\n# Intro\n...", id: newId});
+      loadSong(newId); toggleMenu(); toggleEditor(true);
     }
     
     function updateSongList() {
       songListEl.innerHTML = '';
-      songs.forEach((s,i) => {
+      songs.forEach((s) => {
         const li = document.createElement('li');
         li.className='song-item';
+        li.dataset.id = s.id; 
         
         li.innerHTML = `
           <div style="display:flex; align-items:center; flex-grow:1; overflow:hidden;">
-            <span class="song-drag-handle" style="cursor:grab; padding-right:12px; color:#777; font-size:1.3rem;">⠿</span>
+            <span class="song-drag-handle">⠿</span>
             <span class="song-title-click" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.title}</span>
           </div>
-          <span onclick="delSong(${i}, event)" style="padding-left:15px; color:#888;">🗑</span>
+          <span onclick="delSong('${s.id}', event)" style="padding-left:15px; color:#888;">🗑</span>
         `;
         
-        li.querySelector('.song-title-click').onclick = () => { loadSong(i); toggleMenu(); };
+        li.querySelector('.song-title-click').onclick = () => { loadSong(s.id); toggleMenu(); };
         
         songListEl.appendChild(li);
       });
+      
+      if(songSearchInput.value) filterSongs();
     }
     
-    function delSong(i,e){ e.stopPropagation(); if(confirm("Ta bort?")){songs.splice(i,1); if(!songs.length) createNewSong(); else loadSong(0); updateSongList(); save();}}
+    function delSong(id, e){ 
+        e.stopPropagation(); 
+        if(confirm("Ta bort?")){
+            const idx = songs.findIndex(s => s.id === id);
+            if(idx > -1) songs.splice(idx, 1);
+            
+            if(!songs.length) createNewSong(); 
+            else if(currentSongId === id) loadSong(songs[0].id);
+            
+            updateSongList(); 
+            save();
+        }
+    }
     
     function toggleMenu(){ 
       sideMenu.classList.toggle('open'); 
       menuOverlay.classList.toggle('visible'); 
       if(sideMenu.classList.contains('open')) {
+        songSearchInput.value = ''; 
         updateSongList(); 
       }
     }
@@ -750,7 +916,6 @@ Bm   A   G   F#7`;
     document.getElementById('btn-trans-up').onclick = () => transpose(1);
     document.getElementById('btn-trans-down').onclick = () => transpose(-1);
     
-    /* --- EXPORT / IMPORT --- */
     function exportJSON() {
         save();
         const blob = new Blob([JSON.stringify(songs)], {type:"application/json"});
@@ -758,10 +923,13 @@ Bm   A   G   F#7`;
     }
     function importJSON(inp) {
         const f = inp.files[0]; if(!f)return;
-        const r = new FileReader(); r.onload=e=>{songs=JSON.parse(e.target.result); loadSong(0); toggleMenu();}; r.readAsText(f);
+        const r = new FileReader(); r.onload=e=>{
+            const loaded = JSON.parse(e.target.result);
+            migrateAndLoad(loaded);
+            toggleMenu();
+        }; r.readAsText(f);
     }
 
-    /* --- MASS PDF/ZIP EXPORT --- */
     async function exportAllPDFs() {
       save();
       if(!confirm("Detta skapar en ZIP-fil med en PDF för varje låt. Det kan ta några sekunder.")) return;
