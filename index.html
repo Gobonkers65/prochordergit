@@ -927,7 +927,7 @@ Bm   A   G   F#7`;
     function exportJSON() {
         save();
         const blob = new Blob([JSON.stringify(songs)], {type:"application/json"});
-        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="prochorder_alla_latar.json"; a.click();
+        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="progit_all.json"; a.click();
     }
     function importJSON(inp) {
         const f = inp.files[0]; if(!f)return;
